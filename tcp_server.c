@@ -12,12 +12,12 @@
 #define SERVER_PORT     9000
 #define BUF_SIZE        1024
 
-void process_client(int fd);
-void erro(char *msg);
-void find_ip(char *server_msg, size_t server_msg_size, char *domain);
-void send2client(int client_socket, char *msg);
 void connect_client(int* fd, struct sockaddr_in *addr);
-void print_from_client(char *msg);  // Declaración correcta de la función
+void process_client(int fd);
+void print_from_client(char *msg);
+void find_ip(char *server_msg, size_t server_msg_size, char *domain);
+void standardize_str(char* str_ptr, char str_array[]);
+void erro(char *msg);
 
 int main() {
     int fd, client;
@@ -30,6 +30,7 @@ int main() {
     while (1) {
         while(waitpid(-1,NULL,WNOHANG)>0);
         client = accept(fd,(struct sockaddr *)&client_addr,(socklen_t *)&client_addr_size);
+        printf("Client connected.\n");
         if (client > 0) {
             if (fork() == 0) {
                 close(fd);
@@ -67,7 +68,7 @@ void process_client(int client_fd){
     char client_msg[BUF_SIZE];
     char server_msg[BUF_SIZE];
 
-    send2client(client_fd, "Welcome to DEI's name server, please enter the domain's name:");
+    write(client_fd, "Welcome to DEI's name server, please enter the domain's name: ", strlen("Welcome to DEI's name server, please enter the domain's name:"));
 
     while (1) {
         bzero(buffer, BUF_SIZE);
@@ -79,14 +80,16 @@ void process_client(int client_fd){
         }
 
         strcpy(client_msg, buffer);
+        char* client_msg_ptr = client_msg;
+        standardize_str(client_msg_ptr, client_msg);
 		if (strcmp(client_msg, "exit") == 0){
-			send2client(client_fd, "Goodbye!");
+            write(client_fd, "Goodbye!", strlen("Goodbye!"));
 			break;
 		}
 
         print_from_client(client_msg);
         find_ip(server_msg, sizeof(server_msg), client_msg);
-        send2client(client_fd, server_msg);
+        write(client_fd, server_msg, strlen(server_msg));
         bzero(client_msg, BUF_SIZE);
         bzero(server_msg, BUF_SIZE);
     }
@@ -95,48 +98,44 @@ void process_client(int client_fd){
 
 void print_from_client(char *msg){
     char formatted_msg[BUF_SIZE];  
-    snprintf(formatted_msg, sizeof(formatted_msg), "Client > %s", msg);
+    snprintf(formatted_msg, sizeof(formatted_msg), "Client > %s\n", msg);
     printf("%s", formatted_msg);
-}
-
-void send2client(int client_socket, char *msg){
-    char formatted_msg[BUF_SIZE]; 
-    snprintf(formatted_msg, sizeof(formatted_msg), "Server > %s\n", msg);
-    write(client_socket, formatted_msg, strlen(formatted_msg));
 }
 
 void find_ip(char *server_msg, size_t server_msg_size, char *domain){
     char line[BUF_SIZE];
-    static char ip[BUF_SIZE];  
+    static char ip[BUF_SIZE];
     char dom[BUF_SIZE];
-    FILE *file = fopen("IpAddress.txt", "r");
 
+    FILE *file = fopen("IpAddress.txt", "r");
     if (file == NULL) {
         erro("didn't find the file.");
         strncpy(server_msg, "Error reading file.", server_msg_size);
         return;
     }
 
-    // Leer línea por línea
     while (fgets(line, sizeof(line), file)) {
-        sscanf(line, "%s\t%s", dom, ip);  // Extraer dominio e IP
-        if (dom[strlen(dom) - 1] == '\n') {
-            dom[strlen(dom) - 1] = '\0';  // Reemplazar el salto de línea con el carácter nulo '\0'
-        }
-        if (domain[strlen(domain) - 1] == '\n') {
-            domain[strlen(domain) - 1] = '\0';  // Reemplazar el salto de línea con el carácter nulo '\0'
-        }
-        if (strcmp(dom, domain) == 0) {  // Comparar con la entrada del cliente
-            if (ip[strlen(ip) - 1] == '\n') {
-                ip[strlen(ip) - 1] = '\0';  // Reemplazar el salto de línea con el carácter nulo '\0'
-            }
+        sscanf(line, "%s\t%s", dom, ip);  
+        char* dom_ptr = dom;
+        standardize_str(dom_ptr, dom);
+        char* domain_ptr = domain; 
+        standardize_str(domain_ptr, domain);
+        if (strcmp(dom, domain) == 0) {  
+            char* ip_ptr = ip;
+            standardize_str(ip_ptr, ip);
             snprintf(server_msg, server_msg_size, "The domain %s has the associated IP address: %s", domain, ip);
             fclose(file);
-            return;  // Copiar el resultado al buffer del llamador
+            return; 
         }
     }
     fclose(file);
     snprintf(server_msg, server_msg_size, "The domain %s does not have an IP address associated.", domain);
+}
+
+void standardize_str(char* str_ptr, char str_array[]){
+    if (str_ptr[strlen(str_array) - 1] == '\n') {
+        str_ptr[strlen(str_array) - 1] = '\0';
+    }
 }
 
 void erro(char *msg){

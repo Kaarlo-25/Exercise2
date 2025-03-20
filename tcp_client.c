@@ -16,6 +16,8 @@
 
 void erro(char *msg);
 char* send2server(int server_socket, char msg[]);
+void print_from_server(char *msg);
+
 
 int main(int argc, char *argv[]) {
 	char endServer[100];
@@ -47,31 +49,40 @@ int main(int argc, char *argv[]) {
 	//welcome message
 	bzero(buffer, sizeof(buffer));
 	read(fd, buffer, sizeof(buffer));
-	printf("Connected to server.\n%s", buffer);
+	printf("Connected to server.\n");
+	print_from_server(buffer);
 	
 	// Receive and send messages
 	while (1) {
         fgets(buffer, sizeof(buffer), stdin); 
-        send2server(fd, buffer);
-
+		
         if (strncmp(buffer, "exit", 5) == 0) {
             printf("Disconnecting...\n");
             break;
         }
+		//send2server(fd, buffer);
+		write(fd, buffer, strlen(buffer));
         bzero(buffer, sizeof(buffer));
         read(fd, buffer, sizeof(buffer));
-        printf("%s", buffer);
+		print_from_server(buffer);
+        //printf("%s", buffer);
     }
 
 	close(fd);
 	exit(0);
 }
 
-char* send2server(int server_socket, char msg[]){
-	char formatted_msg[BUF_SIZE];
-    snprintf(formatted_msg, sizeof(formatted_msg), "%s", msg);
-    write(server_socket, formatted_msg, strlen(formatted_msg));
+void print_from_server(char *msg){
+    char formatted_msg[BUF_SIZE];  
+    snprintf(formatted_msg, sizeof(formatted_msg), "Server > %s\n", msg);
+    printf("%s", formatted_msg);
 }
+
+//char* send2server(int server_socket, char msg[]){
+//	char formatted_msg[BUF_SIZE];
+//    snprintf(formatted_msg, sizeof(formatted_msg), "%s", msg);
+//    write(server_socket, formatted_msg, strlen(formatted_msg));
+//}
 
 void erro(char *msg) {
 	printf("Erro: %s\n", msg);
