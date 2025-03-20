@@ -83,6 +83,7 @@ void process_client(int client_fd){
         char* client_msg_ptr = client_msg;
         standardize_str(client_msg_ptr, client_msg);
 		if (strcmp(client_msg, "exit") == 0){
+            printf("Client disconnected.\n");
             write(client_fd, "Goodbye!", strlen("Goodbye!"));
 			break;
 		}
